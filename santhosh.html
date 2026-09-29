@@ -1,0 +1,322 @@
+from pathlib import Path
+
+html = r'''<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CodeQuest | Online Quiz</title>
+<style>
+  :root { --ink:#202044; --muted:#6c6c89; --purple:#6c4cf1; --pink:#ed5ca8; }
+  * { box-sizing:border-box; }
+  body {
+    margin:0; min-height:100vh; font-family:Arial,Helvetica,sans-serif; color:var(--ink);
+    background:linear-gradient(135deg,#dff5ff 0%,#f4e8ff 48%,#ffe5f1 100%);
+    display:flex; align-items:center; justify-content:center; padding:24px;
+  }
+  .app { width:min(760px,100%); }
+  .brand { text-align:center; margin-bottom:18px; }
+  .logo {
+    display:inline-grid; place-items:center; width:54px; height:54px; border-radius:18px;
+    background:linear-gradient(135deg,#6c4cf1,#ed5ca8); color:white; font-size:26px;
+    box-shadow:0 10px 25px #7a58d344;
+  }
+  .brand h1 { margin:10px 0 4px; font-size:30px; letter-spacing:-.7px; }
+  .brand p { margin:0; color:var(--muted); }
+  .card {
+    background:#ffffffed; border:1px solid #ffffff; border-radius:25px; padding:clamp(22px,5vw,38px);
+    box-shadow:0 20px 60px #40316b1a; backdrop-filter:blur(8px);
+  }
+  h2 { margin:0 0 8px; font-size:25px; }
+  .sub { margin:0 0 24px; color:var(--muted); line-height:1.5; }
+  label { display:block; margin:16px 0 8px; font-weight:700; font-size:14px; }
+  input {
+    width:100%; padding:14px 15px; border:1.5px solid #deddf0; border-radius:12px;
+    font-size:16px; outline:none; background:#fcfbff;
+  }
+  input:focus { border-color:var(--purple); box-shadow:0 0 0 3px #6c4cf11c; }
+  button {
+    border:0; border-radius:12px; padding:14px 18px; font-size:15px; font-weight:700;
+    cursor:pointer; transition:transform .15s,opacity .15s;
+  }
+  button:hover { transform:translateY(-1px); }
+  button:disabled { opacity:.45; cursor:not-allowed; transform:none; }
+  .primary { color:white; background:linear-gradient(100deg,var(--purple),var(--pink)); }
+  .full { width:100%; margin-top:22px; }
+  .error { color:#c0264f; background:#fff0f4; padding:11px 13px; border-radius:10px; margin-top:14px; font-size:14px; }
+  .hidden { display:none !important; }
+  .demo { margin-top:14px; font-size:13px; color:var(--muted); line-height:1.5; }
+  .language-grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+  .language {
+    text-align:left; padding:22px; border:2px solid #e8e5f6; background:#fff; border-radius:18px;
+  }
+  .language:hover { border-color:var(--purple); background:#faf8ff; }
+  .language .emoji { font-size:35px; display:block; margin-bottom:13px; }
+  .language strong { display:block; font-size:19px; margin-bottom:5px; }
+  .language small { color:var(--muted); }
+  .topline { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:20px; }
+  .pill { background:#f0edff; color:#6244d6; border-radius:99px; padding:8px 12px; font-weight:700; font-size:13px; }
+  .progress { height:9px; background:#eceaf6; border-radius:99px; overflow:hidden; margin-bottom:25px; }
+  .bar { height:100%; width:0; background:linear-gradient(90deg,var(--purple),var(--pink)); transition:width .25s; }
+  .question { font-size:21px; line-height:1.45; margin:0 0 20px; }
+  .options { display:grid; gap:11px; }
+  .option {
+    width:100%; text-align:left; background:white; border:1.5px solid #e5e3f1; color:var(--ink);
+    display:flex; align-items:center; gap:12px; line-height:1.4;
+  }
+  .letter { width:31px; height:31px; flex:0 0 31px; display:grid; place-items:center; border-radius:9px; background:#f1effb; font-weight:700; }
+  .option.selected { border-color:var(--purple); background:#f6f3ff; }
+  .option.correct { border-color:#16a36a; background:#eafff4; }
+  .option.incorrect { border-color:#e04b69; background:#fff0f3; }
+  .feedback { margin-top:15px; border-radius:11px; padding:12px 14px; font-weight:700; }
+  .feedback.good { color:#087849; background:#e8fff3; }
+  .feedback.bad { color:#bd2947; background:#fff0f3; }
+  .actions { display:flex; justify-content:space-between; align-items:center; gap:12px; margin-top:22px; }
+  .secondary { background:#f0eef8; color:#514b70; }
+  .result { text-align:center; }
+  .result-icon { font-size:60px; margin:8px 0 14px; }
+  .score-circle {
+    width:150px; height:150px; border-radius:50%; margin:22px auto; display:grid; place-items:center;
+    background:linear-gradient(135deg,#e8e0ff,#ffe1f0); border:8px solid #fff; box-shadow:0 8px 25px #6c4cf122;
+  }
+  .score-circle strong { font-size:36px; display:block; }
+  .score-circle span { color:var(--muted); font-size:13px; }
+  .status { display:inline-block; padding:9px 20px; border-radius:99px; font-weight:800; letter-spacing:1px; }
+  .pass { color:#087849; background:#d9ffeb; }
+  .fail { color:#b42345; background:#ffe2e9; }
+  .result-details { background:#faf9ff; border-radius:14px; padding:15px; margin:20px 0; line-height:1.9; }
+  footer { text-align:center; font-size:12px; color:#77728f; margin-top:18px; }
+  @media(max-width:520px) {
+    body { padding:14px; }
+    .language-grid { grid-template-columns:1fr; }
+    .topline { align-items:flex-start; flex-direction:column; }
+    .question { font-size:19px; }
+    .actions button { flex:1; }
+  }
+</style>
+</head>
+<body>
+<main class="app">
+  <header class="brand">
+    <div class="logo">{"</>"}</div>
+    <h1>CodeQuest</h1>
+    <p>Learn. Practice. Level up.</p>
+  </header>
+
+  <section class="card" id="loginScreen">
+    <h2>Welcome back! 👋</h2>
+    <p class="sub">Login to start your programming quiz.</p>
+    <form id="loginForm">
+      <label for="username">Username</label>
+      <input id="username" autocomplete="username" placeholder="Enter your username" required>
+      <label for="password">Password</label>
+      <input id="password" type="password" autocomplete="current-password" placeholder="Enter your password" required>
+      <div id="loginError" class="error hidden" role="alert"></div>
+      <button class="primary full" type="submit">Login & Continue →</button>
+    </form>
+    <p class="demo"><strong>Demo login:</strong> Username: <code>student</code> &nbsp; Password: <code>quiz123</code><br>
+    This is a front-end demo. Do not use a real or personal password.</p>
+  </section>
+
+  <section class="card hidden" id="languageScreen">
+    <h2 id="helloTitle">Choose your challenge ✨</h2>
+    <p class="sub">Select a language. You’ll get 10 multiple-choice questions.</p>
+    <div class="language-grid">
+      <button class="language" onclick="startQuiz('Java')">
+        <span class="emoji">☕</span><strong>Java</strong><small>Classes, objects & basics</small>
+      </button>
+      <button class="language" onclick="startQuiz('Python')">
+        <span class="emoji">🐍</span><strong>Python</strong><small>Syntax, data types & basics</small>
+      </button>
+    </div>
+    <button class="secondary full" onclick="logout()">Log out</button>
+  </section>
+
+  <section class="card hidden" id="quizScreen">
+    <div class="topline">
+      <span class="pill" id="languagePill">Java Quiz</span>
+      <span class="pill" id="questionCount">Question 1 of 10</span>
+    </div>
+    <div class="progress"><div class="bar" id="progressBar"></div></div>
+    <p class="sub" id="questionTopic">Programming basics</p>
+    <h2 class="question" id="questionText"></h2>
+    <div class="options" id="optionsList"></div>
+    <div id="feedback" class="feedback hidden" aria-live="polite"></div>
+    <div class="actions">
+      <button class="secondary" onclick="quitQuiz()">Exit quiz</button>
+      <button class="primary" id="nextButton" onclick="nextQuestion()" disabled>Check answer</button>
+    </div>
+  </section>
+
+  <section class="card hidden result" id="resultScreen">
+    <div class="result-icon" id="resultIcon">🏆</div>
+    <h2 id="resultTitle">Quiz complete!</h2>
+    <p class="sub" id="resultSubtitle">Here is your result.</p>
+    <div class="score-circle"><div><strong id="scorePercent">0%</strong><span>YOUR SCORE</span></div></div>
+    <div><span class="status" id="resultStatus">PASS</span></div>
+    <div class="result-details">
+      <div>Language: <strong id="resultLanguage"></strong></div>
+      <div>Correct answers: <strong id="correctCount"></strong> / <span id="totalCount">10</span></div>
+      <div>Pass mark: <strong>50%</strong></div>
+    </div>
+    <button class="primary full" onclick="showScreen('languageScreen')">Try another quiz ↻</button>
+    <button class="secondary full" onclick="logout()">Log out</button>
+  </section>
+  <footer>© 2026 CodeQuest • Online Quiz Management System</footer>
+</main>
+
+<script>
+const questionBank = {
+  Java: [
+    {q:"Which keyword is used to create a class in Java?", options:["define","class","struct","newclass"], answer:1, topic:"Java basics"},
+    {q:"Which method is the usual entry point of a Java application?", options:["start()","run()","main()","init()"], answer:2, topic:"Program structure"},
+    {q:"Which data type stores a whole number in Java?", options:["int","String","boolean","char[]"], answer:0, topic:"Data types"},
+    {q:"Which keyword creates an object in Java?", options:["class","this","make","new"], answer:3, topic:"Objects"},
+    {q:"Which symbol ends most Java statements?", options:[":",";","!","."], answer:1, topic:"Syntax"},
+    {q:"Which type stores true or false?", options:["int","float","boolean","String"], answer:2, topic:"Data types"},
+    {q:"Which keyword is used to inherit a class in Java?", options:["extends","inherits","implements-class","superclass"], answer:0, topic:"Inheritance"},
+    {q:"Which package contains the Scanner class?", options:["java.io","java.net","java.lang","java.util"], answer:3, topic:"Input"},
+    {q:"Which loop checks its condition before each iteration?", options:["while","do-while only at the end","Neither loop","All loops check only at the end"], answer:0, topic:"Loops"},
+    {q:"Which keyword prevents a variable from being reassigned after initialization?", options:["static","final","private","void"], answer:1, topic:"Keywords"}
+  ],
+  Python: [
+    {q:"Which function displays output in Python?", options:["echo()","displayText()","print()","writeLine()"], answer:2, topic:"Python basics"},
+    {q:"Which symbol starts a single-line comment in Python?", options:["//","#","<!--","**"], answer:1, topic:"Syntax"},
+    {q:"Which type stores whole numbers in Python?", options:["int","str","list","booltext"], answer:0, topic:"Data types"},
+    {q:"Which brackets are commonly used to create a Python list?", options:["{}","()","[]","<>"], answer:2, topic:"Collections"},
+    {q:"How do you define a function in Python?", options:["function greet():","def greet():","fun greet():","make greet():"], answer:1, topic:"Functions"},
+    {q:"Which value represents a Boolean true in Python?", options:["true","TRUE","True","yes"], answer:2, topic:"Data types"},
+    {q:"Which keyword begins a conditional statement?", options:["if","when","check","caseof"], answer:0, topic:"Conditions"},
+    {q:"Which loop is commonly used to iterate over a list?", options:["repeat","foreach","loop","for"], answer:3, topic:"Loops"},
+    {q:"What is the result of len('code')?", options:["3","4","5","code"], answer:1, topic:"Built-in functions"},
+    {q:"Which file extension is commonly used for Python files?", options:[".java",".html",".py",".css"], answer:2, topic:"Files"}
+  ]
+};
+
+let currentUser = "";
+let currentLanguage = "";
+let questions = [];
+let questionIndex = 0;
+let selectedAnswer = null;
+let score = 0;
+let answered = false;
+
+function showScreen(id) {
+  ["loginScreen","languageScreen","quizScreen","resultScreen"].forEach(screenId =>
+    document.getElementById(screenId).classList.toggle("hidden", screenId !== id)
+  );
+}
+document.getElementById("loginForm").addEventListener("submit", function(event) {
+  event.preventDefault();
+  const username = document.getElementById("username").value.trim();
+  const password = document.getElementById("password").value;
+  const error = document.getElementById("loginError");
+  // Demo-only credentials. Real accounts need a secure backend and database.
+  if (username.toLowerCase() === "student" && password === "quiz123") {
+    currentUser = username;
+    document.getElementById("helloTitle").textContent = `Hi, ${username}! Choose your challenge ✨`;
+    error.classList.add("hidden");
+    showScreen("languageScreen");
+  } else {
+    error.textContent = "Login details are incorrect. Try the demo username and password shown below.";
+    error.classList.remove("hidden");
+  }
+});
+
+function startQuiz(language) {
+  currentLanguage = language;
+  questions = questionBank[language];
+  questionIndex = 0;
+  score = 0;
+  showScreen("quizScreen");
+  renderQuestion();
+}
+function renderQuestion() {
+  selectedAnswer = null;
+  answered = false;
+  const item = questions[questionIndex];
+  document.getElementById("languagePill").textContent = `${currentLanguage} Quiz`;
+  document.getElementById("questionCount").textContent = `Question ${questionIndex + 1} of ${questions.length}`;
+  document.getElementById("progressBar").style.width = `${(questionIndex / questions.length) * 100}%`;
+  document.getElementById("questionTopic").textContent = item.topic;
+  document.getElementById("questionText").textContent = item.q;
+  document.getElementById("feedback").className = "feedback hidden";
+  const optionsList = document.getElementById("optionsList");
+  optionsList.replaceChildren();
+  item.options.forEach((option, index) => {
+    const button = document.createElement("button");
+    button.className = "option";
+    button.innerHTML = `<span class="letter">${String.fromCharCode(65 + index)}</span><span></span>`;
+    button.querySelector("span:last-child").textContent = option;
+    button.addEventListener("click", () => selectAnswer(index));
+    optionsList.appendChild(button);
+  });
+  const nextButton = document.getElementById("nextButton");
+  nextButton.disabled = true;
+  nextButton.textContent = "Check answer";
+}
+function selectAnswer(index) {
+  if (answered) return;
+  selectedAnswer = index;
+  [...document.querySelectorAll(".option")].forEach((button, i) => button.classList.toggle("selected", i === index));
+  document.getElementById("nextButton").disabled = false;
+}
+function nextQuestion() {
+  const item = questions[questionIndex];
+  const feedback = document.getElementById("feedback");
+  if (!answered) {
+    if (selectedAnswer === null) return;
+    answered = true;
+    const options = [...document.querySelectorAll(".option")];
+    options.forEach(button => button.disabled = true);
+    options[item.answer].classList.add("correct");
+    if (selectedAnswer === item.answer) {
+      score++;
+      feedback.textContent = "✓ Correct! Well done.";
+      feedback.className = "feedback good";
+    } else {
+      options[selectedAnswer].classList.add("incorrect");
+      feedback.textContent = `✗ Incorrect. Correct answer: ${item.options[item.answer]}`;
+      feedback.className = "feedback bad";
+    }
+    document.getElementById("nextButton").textContent =
+      questionIndex === questions.length - 1 ? "View result →" : "Next question →";
+    document.getElementById("progressBar").style.width = `${((questionIndex + 1) / questions.length) * 100}%`;
+  } else {
+    questionIndex++;
+    if (questionIndex < questions.length) renderQuestion();
+    else showResult();
+  }
+}
+function showResult() {
+  const percent = Math.round((score / questions.length) * 100);
+  const passed = percent >= 50;
+  document.getElementById("resultIcon").textContent = passed ? "🏆" : "📚";
+  document.getElementById("resultTitle").textContent = passed ? `Well done, ${currentUser}!` : "Keep practising!";
+  document.getElementById("resultSubtitle").textContent = passed
+    ? "You reached the pass mark. Great work!"
+    : "You did not reach 50% this time. Try again to improve your score.";
+  document.getElementById("scorePercent").textContent = `${percent}%`;
+  const status = document.getElementById("resultStatus");
+  status.textContent = passed ? "PASS" : "FAIL";
+  status.className = `status ${passed ? "pass" : "fail"}`;
+  document.getElementById("resultLanguage").textContent = currentLanguage;
+  document.getElementById("correctCount").textContent = score;
+  document.getElementById("totalCount").textContent = questions.length;
+  showScreen("resultScreen");
+}
+function quitQuiz() {
+  if (confirm("Exit this quiz? Your current progress will be lost.")) showScreen("languageScreen");
+}
+function logout() {
+  currentUser = "";
+  document.getElementById("loginForm").reset();
+  showScreen("loginScreen");
+}
+</script>
+</body>
+</html>'''
+
+path = Path("/mnt/data/quiz.html")
+path.write_text(html, encoding="utf-8")
+print(f"Created {path.name} ({path.stat().st_size:,} bytes)")
